@@ -24,7 +24,7 @@ func GetContainerMySqlBroker(ctx context.Context) (*MysqlBroker, *gorm.DB, func(
 	b, err := NewMysqlBroker(MysqlBrokerConfig{
 		Url: connStr,
 		GormConfig: gorm.Config{
-			Logger: logger.Default.LogMode(logger.Info),
+			Logger: logger.Default.LogMode(logger.Error),
 		},
 	})
 	if err != nil {
@@ -35,6 +35,8 @@ func GetContainerMySqlBroker(ctx context.Context) (*MysqlBroker, *gorm.DB, func(
 		log.Println("Terminating container")
 		mysqlContainer.Terminate(ctx)
 	}
+
+	b.db.Delete(&Task{})
 
 	return b, b.db, cancel, nil
 
