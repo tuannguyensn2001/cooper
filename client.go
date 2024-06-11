@@ -16,6 +16,7 @@ var (
 
 type IBroker interface {
 	Enqueue(ctx context.Context, task *base.Task) error
+	Dequeue(ctx context.Context, queue string) (*base.Task, error)
 }
 
 type Client struct {

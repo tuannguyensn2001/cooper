@@ -14,6 +14,7 @@ type MysqlBroker struct {
 }
 
 var ErrTaskAlreadyExists = errors.New("task already exists")
+var ErrNoTaskFound = errors.New("no task found")
 
 type Task struct {
 	Id           int    `gorm:"column:id;primaryKey"`
@@ -74,4 +75,36 @@ func (b *MysqlBroker) Enqueue(ctx context.Context, task *base.Task) error {
 		return err
 	}
 	return nil
+}
+
+func (b *MysqlBroker) Dequeue(ctx context.Context, queue string) (*base.Task, error) {
+	var task Task
+	err := b.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		err := tx.Where("queue = ? and state = ?", queue, base.TaskStatePending.String()).First(&task).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNoTaskFound
+			}
+			return err
+		}
+
+		task.State = base.TaskStateRunning.String()
+		err = tx.Save(&task).Error
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &base.Task{
+		Channel:    task.Channel,
+		Payload:    task.Payload,
+		Code:       task.Code,
+		Queue:      task.Queue,
+		EnqueuedAt: task.EnqueuedAt,
+	}, nil
+
 }
